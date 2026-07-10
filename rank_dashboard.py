@@ -15,7 +15,18 @@ from core import naver_rank as nr
 DEVICES = [("pc", "💻 PC"), ("mobile", "📱 모바일")]
 TOP_N = 6
 
-# 삼성카드는 순위 목록 대신 '지정 카드가 삼성카드 전체목록에서 몇 번째인지'만 표시
+# 경쟁 키워드 (관련광고순 TOP6 + 삼성 강조)
+COMP_KWS = ["케이패스카드", "기후동행카드", "국민행복카드"]
+
+# 프리미엄 지정 카드 (여러 패널에서 공용)
+PREMIUM_TRACK = [
+    "THE iD. TITANIUM (포인트)",
+    "THE iD. PLATINUM (포인트)",
+    "THE iD. 1st",
+    "THE 1(스카이패스)",
+]
+
+# 삼성카드: 삼성 전체목록(companyCode=SS)에서 지정 카드가 몇 번째인지
 SAMSUNG_KW = "삼성카드"
 SAMSUNG_CODE = "SS"
 SAMSUNG_TRACK = [
@@ -23,7 +34,13 @@ SAMSUNG_TRACK = [
     "기후동행 삼성카드",
     "국민행복 삼성카드 V2",
     "MY S-OIL 삼성카드",
-]
+] + PREMIUM_TRACK
+
+# 프리미엄카드: '프리미엄' 혜택 카테고리(6/33) 전체목록에서 지정 카드 순위
+PREMIUM_KW = "프리미엄카드"
+PREMIUM_BENEFIT_IDS = [6]
+PREMIUM_SUB_BENEFIT_IDS = [33]
+
 # 경쟁 키워드에서 강조할 카드 (정확히 이 카드명일 때만)
 HIGHLIGHT_CARDS = set(SAMSUNG_TRACK)
 
@@ -113,29 +130,42 @@ def collect_all() -> dict:
     def comp(job):
         kw, dev = job
         try:
-            return job, ("ok", nr.collect_cards(kw, dev, TOP_N))
+            return ("comp", job), ("ok", nr.collect_cards(kw, dev, TOP_N))
         except Exception as e:
-            return job, ("err", str(e))
+            return ("comp", job), ("err", str(e))
 
     def samsung(dev):
         try:
-            return dev, ("ok", nr.find_card_positions(SAMSUNG_TRACK, SAMSUNG_CODE, dev))
+            return ("sam", dev), ("ok", nr.find_card_positions(
+                SAMSUNG_TRACK, dev, company_code=SAMSUNG_CODE))
         except Exception as e:
-            return dev, ("err", str(e))
+            return ("sam", dev), ("err", str(e))
 
-    comp_jobs = [(kw, dev) for kw in nr.KEYWORDS if kw != SAMSUNG_KW for dev, _ in DEVICES]
-    with _cf.ThreadPoolExecutor(max_workers=10) as ex:
+    def premium(dev):
+        try:
+            return ("prem", dev), ("ok", nr.find_card_positions(
+                PREMIUM_TRACK, dev, benefit_category_ids=PREMIUM_BENEFIT_IDS,
+                sub_benefit_category_ids=PREMIUM_SUB_BENEFIT_IDS))
+        except Exception as e:
+            return ("prem", dev), ("err", str(e))
+
+    comp_jobs = [(kw, dev) for kw in COMP_KWS for dev, _ in DEVICES]
+    with _cf.ThreadPoolExecutor(max_workers=12) as ex:
         futs = [ex.submit(comp, j) for j in comp_jobs]
         futs += [ex.submit(samsung, dev) for dev, _ in DEVICES]
+        futs += [ex.submit(premium, dev) for dev, _ in DEVICES]
         results = [f.result() for f in futs]
 
-    sam = {}
-    for key, res in results:
-        if isinstance(key, tuple):
-            out[key] = res
+    sam, prem = {}, {}
+    for (kind, sub), res in results:
+        if kind == "comp":
+            out[sub] = res           # sub = (kw, dev)
+        elif kind == "sam":
+            sam[sub] = res           # sub = dev
         else:
-            sam[key] = res
+            prem[sub] = res
     out[SAMSUNG_KW] = sam
+    out[PREMIUM_KW] = prem
     return out
 
 
@@ -169,13 +199,14 @@ def competitive_card(kw, data) -> str:
             f'{"".join(blocks)}</div>')
 
 
-def samsung_card(sam) -> str:
+def tracked_card(title, track, data, note_text) -> str:
+    """지정 카드가 전체 목록에서 몇 번째인지 PC/모바일로 보여주는 패널."""
     def ranks(dev):
-        status, payload = sam.get(dev, ("err", None))
+        status, payload = data.get(dev, ("err", None))
         return payload if status == "ok" else None
     pc, mo = ranks("pc"), ranks("mobile")
     err = next((pl for dev in ("pc", "mobile")
-                for st_, pl in [sam.get(dev, ("err", "데이터 없음"))] if st_ == "err"), None)
+                for st_, pl in [data.get(dev, ("err", "데이터 없음"))] if st_ == "err"), None)
 
     def cell(d, name):
         if d is None:
@@ -184,14 +215,14 @@ def samsung_card(sam) -> str:
         return f'<td class="big">{v}위</td>' if v else '<td class="miss">미노출</td>'
 
     trs = [f'<tr><td class="cname">{_html.escape(n)}</td>{cell(pc, n)}{cell(mo, n)}</tr>'
-           for n in SAMSUNG_TRACK]
+           for n in track]
     table = ('<table class="sam"><thead><tr><th>카드명</th>'
              '<th style="text-align:center">PC 순위</th>'
              '<th style="text-align:center">모바일 순위</th></tr></thead><tbody>'
              + "".join(trs) + "</tbody></table>")
-    note = '<div class="note">삼성카드 전체 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 목록에 없음 · 순위는 조회 시점에 따라 변동(추정)</div>'
+    note = f'<div class="note">{note_text}</div>'
     errnote = f'<div class="note">일부 수집 실패: {_html.escape(str(err))}</div>' if err else ""
-    return (f'<div class="kw feat"><div class="kw-head"><span class="kw-title">삼성카드</span>'
+    return (f'<div class="kw feat"><div class="kw-head"><span class="kw-title">{_html.escape(title)}</span>'
             f'<span class="tag">지정 카드 순위</span></div>{table}{note}{errnote}</div>')
 
 
@@ -223,9 +254,17 @@ time_ph.markdown(f'<div class="upd">마지막 수집 · <b>{ts}</b></div>', unsa
 data = st.session_state["data"]
 
 # ── 삼성카드 (최상단, 전체 폭) ───────────────────────────
-st.markdown(samsung_card(data.get(SAMSUNG_KW, {})), unsafe_allow_html=True)
+st.markdown(tracked_card(
+    SAMSUNG_KW, SAMSUNG_TRACK, data.get(SAMSUNG_KW, {}),
+    "삼성카드 전체 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 목록에 없음 · 순위는 조회 시점에 따라 변동(추정)",
+), unsafe_allow_html=True)
+
+# ── 프리미엄카드 (전체 폭) ───────────────────────────────
+st.markdown(tracked_card(
+    PREMIUM_KW, PREMIUM_TRACK, data.get(PREMIUM_KW, {}),
+    "네이버 ‘프리미엄’ 혜택 카테고리 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
+), unsafe_allow_html=True)
 
 # ── 경쟁 키워드 (한 줄 3열 → 좁으면 세로 1열) ─────────────
-comp_kws = [k for k in nr.KEYWORDS if k != SAMSUNG_KW]
-cards = "".join(competitive_card(kw, data) for kw in comp_kws)
+cards = "".join(competitive_card(kw, data) for kw in COMP_KWS)
 st.markdown(f'<div class="comp-grid">{cards}</div>', unsafe_allow_html=True)

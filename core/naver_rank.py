@@ -253,32 +253,41 @@ def collect_cards(keyword: str, device: str, top_n: int = 6) -> list[dict]:
 
 
 # ─────────────────────────────────────────────────────────────
-# 카드사 전체 목록 (검색결과 '더보기' → m-card-search GraphQL)
+# 전체 카드 목록 (검색결과 '더보기' → m-card-search GraphQL)
 #
-# 검색 위젯은 상위 6개만 노출한다. '더보기'가 여는 목록 페이지는 companyCode로
-# 필터된 전체 카드를 관련광고순(sortMethod="ri")으로 보여주며, 그 데이터는
-# smartSearch GraphQL 쿼리로 받는다. 지정 카드의 '몇 번째' 순서를 알 때 쓴다.
+# 검색 위젯은 상위 6개만 노출한다. '더보기'가 여는 목록 페이지는 필터(카드사
+# companyCode 또는 혜택 카테고리 benefitCategoryIds)로 좁힌 전체 카드를
+# 관련광고순(sortMethod="ri")으로 보여주며, 그 데이터는 smartSearch GraphQL로
+# 받는다. 지정 카드가 그 목록에서 '몇 번째'인지 알 때 쓴다.
 # ─────────────────────────────────────────────────────────────
 _GRAPHQL_URL = "https://m-card-search.naver.com/graphql"
 _SMART_QUERY = (
-    "query smartSearch($companyCode:[String],$pageNo:Int,$pageSize:Int,"
-    "$sortMethod:SortMethod,$bizType:BizType,$device:AdDeviceType){"
-    "cardAdList(companyCode:$companyCode,pageNo:$pageNo,pageSize:$pageSize,"
+    "query smartSearch($companyCode:[String],$benefitCategoryIds:[Int],"
+    "$subBenefitCategoryIds:[Int],$pageNo:Int,$pageSize:Int,$sortMethod:SortMethod,"
+    "$bizType:BizType,$device:AdDeviceType){"
+    "cardAdList(companyCode:$companyCode,benefitCategoryIds:$benefitCategoryIds,"
+    "subBenefitCategoryIds:$subBenefitCategoryIds,pageNo:$pageNo,pageSize:$pageSize,"
     "sortMethod:$sortMethod,bizType:$bizType,device:$device){"
     "cardAds{cardAdId cardName companyCode}}}"
 )
 
 
-def fetch_company_cards(company_code: str, device: str,
-                        page_size: int = 60, timeout: float = 20.0) -> list[dict]:
-    """카드사(companyCode) 전체 카드를 관련광고순으로 반환.
+def fetch_card_list(device: str, *, company_code: str | None = None,
+                    benefit_category_ids: list[int] | None = None,
+                    sub_benefit_category_ids: list[int] | None = None,
+                    page_size: int = 100, timeout: float = 20.0) -> list[dict]:
+    """필터(카드사 또는 혜택 카테고리)로 좁힌 전체 카드를 관련광고순으로 반환.
 
     반환 행: {rank, card_name, company_code}. device: 'pc' | 'mobile'.
     """
-    variables = {
-        "companyCode": [company_code], "pageNo": 1, "pageSize": page_size,
-        "sortMethod": "ri", "bizType": "CPC", "device": device,
-    }
+    variables = {"pageNo": 1, "pageSize": page_size, "sortMethod": "ri",
+                 "bizType": "CPC", "device": device}
+    if company_code:
+        variables["companyCode"] = [company_code]
+    if benefit_category_ids:
+        variables["benefitCategoryIds"] = benefit_category_ids
+    if sub_benefit_category_ids:
+        variables["subBenefitCategoryIds"] = sub_benefit_category_ids
     payload = json.dumps({
         "operationName": "smartSearch", "query": _SMART_QUERY, "variables": variables,
     }).encode("utf-8")
@@ -296,14 +305,23 @@ def fetch_company_cards(company_code: str, device: str,
             for i, c in enumerate(cards)]
 
 
+def fetch_company_cards(company_code: str, device: str, **kw) -> list[dict]:
+    """카드사(companyCode) 전체 카드를 관련광고순으로 반환 (하위호환 래퍼)."""
+    return fetch_card_list(device, company_code=company_code, **kw)
+
+
 def positions_of(card_names: list[str], target_names: list[str]) -> dict:
     """순서 리스트에서 지정 카드명의 순위(1-base)를 찾는다. 없으면 None. (순수 함수)"""
     return {t: (card_names.index(t) + 1 if t in card_names else None)
             for t in target_names}
 
 
-def find_card_positions(target_names: list[str], company_code: str,
-                        device: str) -> dict:
-    """카드사 전체 목록에서 지정 카드명들의 순위를 반환. {card_name: rank | None}"""
-    rows = fetch_company_cards(company_code, device)
+def find_card_positions(target_names: list[str], device: str, *,
+                        company_code: str | None = None,
+                        benefit_category_ids: list[int] | None = None,
+                        sub_benefit_category_ids: list[int] | None = None) -> dict:
+    """필터로 좁힌 전체 목록에서 지정 카드명들의 순위를 반환. {card_name: rank | None}"""
+    rows = fetch_card_list(device, company_code=company_code,
+                           benefit_category_ids=benefit_category_ids,
+                           sub_benefit_category_ids=sub_benefit_category_ids)
     return positions_of([r["card_name"] for r in rows], target_names)

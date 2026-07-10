@@ -36,10 +36,10 @@ SAMSUNG_TRACK = [
     "MY S-OIL 삼성카드",
 ] + PREMIUM_TRACK
 
-# 프리미엄카드: '프리미엄' 혜택 카테고리(6/33) 전체목록에서 지정 카드 순위
+# 프리미엄카드: '프리미엄카드' 검색 더보기 목록(혜택 카테고리 6, 130건) 기준 지정 카드 순위
 PREMIUM_KW = "프리미엄카드"
 PREMIUM_BENEFIT_IDS = [6]
-PREMIUM_SUB_BENEFIT_IDS = [33]
+PREMIUM_SUB_BENEFIT_IDS = []   # 하위(33) 넣으면 다른 29건 목록이 되어 화면과 어긋남
 
 # 경쟁 키워드에서 강조할 카드 (정확히 이 카드명일 때만)
 HIGHLIGHT_CARDS = set(SAMSUNG_TRACK)
@@ -264,7 +264,7 @@ st.markdown(tracked_card(
 # ── 프리미엄카드 (전체 폭) ───────────────────────────────
 st.markdown(tracked_card(
     PREMIUM_KW, PREMIUM_TRACK, data.get(PREMIUM_KW, {}),
-    "네이버 ‘프리미엄’ 혜택 카테고리 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
+    "‘프리미엄카드’ 검색 더보기 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
 ), unsafe_allow_html=True)
 
 # ── 경쟁 키워드 (한 줄 3열 → 좁으면 세로 1열) ─────────────

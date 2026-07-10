@@ -114,6 +114,8 @@ td.miss { text-align:center; width:110px; color:var(--muted); font-weight:600; f
 td.cname { font-weight:700; }
 
 .note { color:var(--muted); font-size:.76rem; margin:8px 2px 2px; }
+.err { background:#FDECEC; color:#B42318; border:1px solid #F5C2C0; border-radius:10px;
+       padding:9px 12px; font-size:.82rem; font-weight:600; margin:2px 0 12px; }
 
 /* 새로고침 버튼 */
 div[data-testid="stButton"] > button { background:var(--pri); color:#fff; border:none;
@@ -221,9 +223,9 @@ def tracked_card(title, track, data, note_text) -> str:
              '<th style="text-align:center">모바일 순위</th></tr></thead><tbody>'
              + "".join(trs) + "</tbody></table>")
     note = f'<div class="note">{note_text}</div>'
-    errnote = f'<div class="note">일부 수집 실패: {_html.escape(str(err))}</div>' if err else ""
+    errnote = (f'<div class="err">⚠ 수집 실패 — {_html.escape(str(err))}</div>' if err else "")
     return (f'<div class="kw feat"><div class="kw-head"><span class="kw-title">{_html.escape(title)}</span>'
-            f'<span class="tag">지정 카드 순위</span></div>{table}{note}{errnote}</div>')
+            f'<span class="tag">지정 카드 순위</span></div>{errnote}{table}{note}</div>')
 
 
 # ── 헤더 (좌: 로고·제목 / 우: 새로고침 버튼 + 마지막 수집) ──

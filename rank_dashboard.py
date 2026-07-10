@@ -76,6 +76,8 @@ div[data-testid="stHorizontalBlock"] > div { position:relative; z-index:1; }
 .upd b { color:var(--ink); }
 /* 헤더 우측: 버튼 아래 수집시각, 버튼폭=텍스트폭, 서로 가운데 정렬 */
 div[data-testid="stHorizontalBlock"] div[data-testid="stVerticalBlock"] { gap:9px; }
+/* 헤더 우측(마지막 열)의 버튼+수집시각을 가로 중앙 정렬 */
+div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stVerticalBlock"] { align-items:center; }
 div[data-testid="stHorizontalBlock"] div[data-testid="stButton"] > button {
    width:200px; margin:0 auto; display:block; padding:.5rem .6rem; }
 
@@ -246,7 +248,8 @@ with hcol2:
 if refresh or st.session_state.get("data") is None:
     with st.spinner("네이버에서 최신 카드 순위 수집 중…"):
         st.session_state["data"] = collect_all()
-        st.session_state["ts"] = _dt.datetime.now().strftime("%m/%d %H:%M:%S")
+        _kst = _dt.datetime.now(_dt.timezone(_dt.timedelta(hours=9)))  # 서버가 UTC라 KST 고정
+        st.session_state["ts"] = _kst.strftime("%m/%d %H:%M:%S")
     if refresh:
         st.toast("최신 순위로 갱신했습니다 ✅ (관련광고순은 자주 바뀌지 않아 값이 같을 수 있어요)")
 

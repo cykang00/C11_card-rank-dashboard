@@ -41,6 +41,38 @@ PREMIUM_KW = "프리미엄카드"
 PREMIUM_BENEFIT_IDS = [6]
 PREMIUM_SUB_BENEFIT_IDS = []   # 하위(33) 넣으면 다른 29건 목록이 되어 화면과 어긋남
 
+# 삼성카드 추가 추적: 삼성 전체목록(SS)에서 아래 카드들의 순위 (하단 섹션)
+# ※ 카탈로그 표기와 정확히 일치해야 매칭됨 (STATION 카드는 '… 카드 (…)' 형태)
+EXTRA_KW = "삼성 카드 추가 순위"
+EXTRA_TRACK = [
+    "네이버페이 taptap",
+    "삼성 iD PLUG-IN 카드",
+    "신세계이마트 삼성카드 7",
+    "taptap DRIVE",
+    "삼성 iD SELECT ON 카드",
+    "삼성 iD 해외 3.5 카드",
+    "모니모카드",
+    "삼성카드 & MILEAGE PLATINUM(스카이패스)",
+    "삼성 iD ALL 카드",
+    "삼성 iD VITA 카드",
+    "KTX 삼성카드",
+    "삼성 iD PET 카드",
+    "삼성 iD ENERGY 카드",
+    "모니모페이카드",
+    "삼성 iD STATION 카드 (HD현대오일뱅크)",
+    "taptap DIGITAL",
+    "모니모A 카드",
+    "아메리칸 엑스프레스 블루",
+    "아메리칸 엑스프레스 리저브",
+    "삼성 iD STATION 카드 (SK에너지)",
+    "다이소 삼성카드",
+    "삼성 iD ONE 카드",
+    "삼성페이 삼성카드 taptap",
+    "삼성 iD STATION 카드 (GS칼텍스)",
+    "삼성 iD NOMAD 카드",
+    "taptap SHOPPING",
+]
+
 # 경쟁 키워드에서 강조할 카드 (정확히 이 카드명일 때만)
 HIGHLIGHT_CARDS = set(SAMSUNG_TRACK)
 
@@ -139,9 +171,12 @@ def collect_all() -> dict:
             return ("comp", job), ("err", str(e))
 
     def samsung(dev):
+        # 삼성 전체목록(SS)을 한 번만 받아 삼성 패널 + 추가 추적 패널 순위를 함께 계산
         try:
-            return ("sam", dev), ("ok", nr.find_card_positions(
-                SAMSUNG_TRACK, dev, company_code=SAMSUNG_CODE))
+            rows = nr.fetch_card_list(dev, company_code=SAMSUNG_CODE, page_size=120)
+            names = [r["card_name"] for r in rows]
+            return ("sam", dev), ("ok", (nr.positions_of(names, SAMSUNG_TRACK),
+                                         nr.positions_of(names, EXTRA_TRACK)))
         except Exception as e:
             return ("sam", dev), ("err", str(e))
 
@@ -160,16 +195,24 @@ def collect_all() -> dict:
         futs += [ex.submit(premium, dev) for dev, _ in DEVICES]
         results = [f.result() for f in futs]
 
-    sam, prem = {}, {}
+    sam, prem, extra = {}, {}, {}
     for (kind, sub), res in results:
         if kind == "comp":
             out[sub] = res           # sub = (kw, dev)
         elif kind == "sam":
-            sam[sub] = res           # sub = dev
+            status, payload = res
+            if status == "ok":
+                sam_pos, extra_pos = payload
+                sam[sub] = ("ok", sam_pos)
+                extra[sub] = ("ok", extra_pos)
+            else:
+                sam[sub] = res
+                extra[sub] = res
         else:
             prem[sub] = res
     out[SAMSUNG_KW] = sam
     out[PREMIUM_KW] = prem
+    out[EXTRA_KW] = extra
     return out
 
 
@@ -273,3 +316,9 @@ st.markdown(tracked_card(
 # ── 경쟁 키워드 (한 줄 3열 → 좁으면 세로 1열) ─────────────
 cards = "".join(competitive_card(kw, data) for kw in COMP_KWS)
 st.markdown(f'<div class="comp-grid">{cards}</div>', unsafe_allow_html=True)
+
+# ── 삼성 카드 추가 순위 (하단, 전체 폭) ───────────────────
+st.markdown(tracked_card(
+    EXTRA_KW, EXTRA_TRACK, data.get(EXTRA_KW, {}),
+    "삼성카드 전체 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 현재 광고 목록에 없음 · 추정",
+), unsafe_allow_html=True)

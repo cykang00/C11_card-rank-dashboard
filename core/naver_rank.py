@@ -272,22 +272,7 @@ _SMART_QUERY = (
 )
 
 
-def fetch_card_list(device: str, *, company_code: str | None = None,
-                    benefit_category_ids: list[int] | None = None,
-                    sub_benefit_category_ids: list[int] | None = None,
-                    page_size: int = 100, timeout: float = 20.0) -> list[dict]:
-    """필터(카드사 또는 혜택 카테고리)로 좁힌 전체 카드를 관련광고순으로 반환.
-
-    반환 행: {rank, card_name, company_code}. device: 'pc' | 'mobile'.
-    """
-    variables = {"pageNo": 1, "pageSize": page_size, "sortMethod": "ri",
-                 "bizType": "CPC", "device": device}
-    if company_code:
-        variables["companyCode"] = [company_code]
-    if benefit_category_ids:
-        variables["benefitCategoryIds"] = benefit_category_ids
-    if sub_benefit_category_ids:
-        variables["subBenefitCategoryIds"] = sub_benefit_category_ids
+def _fetch_card_page(device, variables, timeout):
     payload = json.dumps({
         "operationName": "smartSearch", "query": _SMART_QUERY, "variables": variables,
     }).encode("utf-8")
@@ -299,10 +284,42 @@ def fetch_card_list(device: str, *, company_code: str | None = None,
     })
     with urllib.request.urlopen(req, timeout=timeout) as r:
         data = json.loads(r.read().decode("utf-8", "ignore"))
-    cards = data["data"]["cardAdList"]["cardAds"]
-    return [{"rank": i + 1, "card_name": c["cardName"],
-             "company_code": c.get("companyCode", "")}
-            for i, c in enumerate(cards)]
+    return data["data"]["cardAdList"]["cardAds"]
+
+
+def fetch_card_list(device: str, *, company_code: str | None = None,
+                    benefit_category_ids: list[int] | None = None,
+                    sub_benefit_category_ids: list[int] | None = None,
+                    page_size: int = 50, max_pages: int = 8,
+                    timeout: float = 20.0) -> list[dict]:
+    """필터(카드사·혜택 카테고리, 없으면 '신용카드' 전체)로 좁힌 카드를 관련광고순으로 반환.
+
+    API가 한 번에 최대 50건만 주므로 pageNo로 끝까지 페이지네이션한다.
+    반환 행: {rank, card_name, company_code}. device: 'pc' | 'mobile'.
+    """
+    base = {"pageSize": page_size, "sortMethod": "ri", "bizType": "CPC", "device": device}
+    if company_code:
+        base["companyCode"] = [company_code]
+    if benefit_category_ids:
+        base["benefitCategoryIds"] = benefit_category_ids
+    if sub_benefit_category_ids:
+        base["subBenefitCategoryIds"] = sub_benefit_category_ids
+    seen: set[str] = set()
+    rows: list[dict] = []
+    for pno in range(1, max_pages + 1):
+        cards = _fetch_card_page(device, {**base, "pageNo": pno}, timeout)
+        if not cards:
+            break
+        for c in cards:
+            name = c["cardName"]
+            if name in seen:
+                continue
+            seen.add(name)
+            rows.append({"rank": len(rows) + 1, "card_name": name,
+                         "company_code": c.get("companyCode", "")})
+        if len(cards) < page_size:
+            break
+    return rows
 
 
 def fetch_company_cards(company_code: str, device: str, **kw) -> list[dict]:

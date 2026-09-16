@@ -141,11 +141,20 @@ table.rk tr.hl td.rk-no { color:var(--hl-ink); }
 table.sam { width:100%; border-collapse:collapse; font-size:.92rem; }
 table.sam th { text-align:left; font-weight:600; color:var(--muted); font-size:.74rem;
                padding:8px 12px; border-bottom:1px solid var(--line); }
-table.sam td { padding:12px; border-bottom:1px solid var(--line); color:var(--ink); }
-td.big { text-align:center; width:110px; font-weight:800; font-size:1.15rem;
+table.sam td { padding:11px 12px; border-bottom:1px solid var(--line); color:var(--ink); }
+td.big { text-align:center; width:70px; font-weight:800; font-size:1.02rem;
          color:var(--pri); font-variant-numeric:tabular-nums; }
-td.miss { text-align:center; width:110px; color:var(--muted); font-weight:600; font-size:.85rem; }
+td.miss { text-align:center; width:70px; color:var(--muted); font-weight:600; font-size:.82rem; }
 td.cname { font-weight:700; }
+/* 2단 그룹 헤더 */
+table.grp2 th.grp { text-align:center; font-weight:800; color:var(--ink); font-size:.82rem;
+                    border-bottom:none; padding-bottom:3px; }
+table.grp2 th.sub { text-align:center; font-weight:700; font-size:.72rem; color:var(--muted);
+                    padding-top:2px; }
+/* 신용카드 그룹(4번째 열) 시작에 구분선 */
+table.grp2 thead tr:first-child th:last-child,
+table.grp2 thead tr:last-child th:nth-child(3),
+table.grp2 tbody td:nth-child(4) { border-left:2px solid #DCE5F4; }
 
 .note { color:var(--muted); font-size:.76rem; margin:8px 2px 2px; }
 .err { background:#FDECEC; color:#B42318; border:1px solid #F5C2C0; border-radius:10px;
@@ -160,6 +169,28 @@ div[data-testid="stButton"] > button:hover { background:#1550c4; transform:trans
 
 
 # ── 수집 ────────────────────────────────────────────────
+# 각 지정-카드 패널은 두 목록에서의 순위를 나란히 보여준다:
+#   primary = 그 패널 고유 목록(삼성카드 SS / 프리미엄카드 cat6)
+#   credit  = '신용카드' 전체 목록(필터 없음)
+# 목록별로 한 번만 받아(디바이스별) 여러 패널이 공유한다.
+def _fetch_list(kind, dev):
+    if kind == "ss":
+        return nr.fetch_card_list(dev, company_code=SAMSUNG_CODE)
+    if kind == "prem":
+        return nr.fetch_card_list(dev, benefit_category_ids=PREMIUM_BENEFIT_IDS,
+                                  sub_benefit_category_ids=PREMIUM_SUB_BENEFIT_IDS)
+    return nr.fetch_card_list(dev)  # 신용카드 전체
+
+
+# 패널 정의: (키, 표시라벨, 추적목록, primary 목록종류)
+PANELS = [
+    (SAMSUNG_KW, "삼성카드", SAMSUNG_TRACK, "ss"),
+    (PREMIUM_KW, "프리미엄카드", PREMIUM_TRACK, "prem"),
+    (EXTRA_KW, "삼성카드", EXTRA_TRACK, "ss"),
+]
+_LIST_KINDS = {"ss", "prem", "credit"}
+
+
 def collect_all() -> dict:
     out = {}
 
@@ -170,49 +201,38 @@ def collect_all() -> dict:
         except Exception as e:
             return ("comp", job), ("err", str(e))
 
-    def samsung(dev):
-        # 삼성 전체목록(SS)을 한 번만 받아 삼성 패널 + 추가 추적 패널 순위를 함께 계산
+    def listjob(kind, dev):
         try:
-            rows = nr.fetch_card_list(dev, company_code=SAMSUNG_CODE, page_size=120)
-            names = [r["card_name"] for r in rows]
-            return ("sam", dev), ("ok", (nr.positions_of(names, SAMSUNG_TRACK),
-                                         nr.positions_of(names, EXTRA_TRACK)))
+            return ("list", (kind, dev)), ("ok", [r["card_name"] for r in _fetch_list(kind, dev)])
         except Exception as e:
-            return ("sam", dev), ("err", str(e))
-
-    def premium(dev):
-        try:
-            return ("prem", dev), ("ok", nr.find_card_positions(
-                PREMIUM_TRACK, dev, benefit_category_ids=PREMIUM_BENEFIT_IDS,
-                sub_benefit_category_ids=PREMIUM_SUB_BENEFIT_IDS))
-        except Exception as e:
-            return ("prem", dev), ("err", str(e))
+            return ("list", (kind, dev)), ("err", str(e))
 
     comp_jobs = [(kw, dev) for kw in COMP_KWS for dev, _ in DEVICES]
-    with _cf.ThreadPoolExecutor(max_workers=12) as ex:
+    list_jobs = [(k, dev) for k in _LIST_KINDS for dev, _ in DEVICES]
+    with _cf.ThreadPoolExecutor(max_workers=14) as ex:
         futs = [ex.submit(comp, j) for j in comp_jobs]
-        futs += [ex.submit(samsung, dev) for dev, _ in DEVICES]
-        futs += [ex.submit(premium, dev) for dev, _ in DEVICES]
+        futs += [ex.submit(listjob, k, dev) for k, dev in list_jobs]
         results = [f.result() for f in futs]
 
-    sam, prem, extra = {}, {}, {}
-    for (kind, sub), res in results:
-        if kind == "comp":
-            out[sub] = res           # sub = (kw, dev)
-        elif kind == "sam":
-            status, payload = res
-            if status == "ok":
-                sam_pos, extra_pos = payload
-                sam[sub] = ("ok", sam_pos)
-                extra[sub] = ("ok", extra_pos)
-            else:
-                sam[sub] = res
-                extra[sub] = res
+    names_by = {}  # (kind, dev) -> (status, names|err)
+    for (tag, sub), res in results:
+        if tag == "comp":
+            out[sub] = res
         else:
-            prem[sub] = res
-    out[SAMSUNG_KW] = sam
-    out[PREMIUM_KW] = prem
-    out[EXTRA_KW] = extra
+            names_by[sub] = res
+
+    # 패널별로 primary + credit 순위를 조립
+    for key, _label, track, primary_kind in PANELS:
+        panel = {}
+        for dev, _ in DEVICES:
+            pstat, pnames = names_by.get((primary_kind, dev), ("err", "데이터 없음"))
+            cstat, cnames = names_by.get(("credit", dev), ("err", "데이터 없음"))
+            if pstat == "ok" and cstat == "ok":
+                panel[dev] = ("ok", {"primary": nr.positions_of(pnames, track),
+                                     "credit": nr.positions_of(cnames, track)})
+            else:
+                panel[dev] = ("err", pnames if pstat == "err" else cnames)
+        out[key] = panel
     return out
 
 
@@ -246,14 +266,26 @@ def competitive_card(kw, data) -> str:
             f'{"".join(blocks)}</div>')
 
 
-def tracked_card(title, track, data, note_text) -> str:
-    """지정 카드가 전체 목록에서 몇 번째인지 PC/모바일로 보여주는 패널."""
-    def ranks(dev):
+def tracked_card(title, primary_label, track, data, note_text) -> str:
+    """지정 카드가 [primary 목록]과 [신용카드 전체 목록]에서 각각 PC/모바일 몇 위인지.
+
+    행은 '신용카드 모바일 순위' 오름차순 정렬(미노출은 맨 아래).
+    """
+    def sets(dev):  # (primary_dict, credit_dict) or (None, None)
         status, payload = data.get(dev, ("err", None))
-        return payload if status == "ok" else None
-    pc, mo = ranks("pc"), ranks("mobile")
+        if status == "ok":
+            return payload["primary"], payload["credit"]
+        return None, None
+    pc_pri, pc_cr = sets("pc")
+    mo_pri, mo_cr = sets("mobile")
     err = next((pl for dev in ("pc", "mobile")
                 for st_, pl in [data.get(dev, ("err", "데이터 없음"))] if st_ == "err"), None)
+
+    def rank(d, name):
+        return d.get(name) if d else None
+
+    # 정렬: 신용카드 모바일 순위 오름차순, 미노출/미수집은 뒤로
+    order = sorted(track, key=lambda n: (rank(mo_cr, n) is None, rank(mo_cr, n) or 0))
 
     def cell(d, name):
         if d is None:
@@ -261,16 +293,24 @@ def tracked_card(title, track, data, note_text) -> str:
         v = d.get(name)
         return f'<td class="big">{v}위</td>' if v else '<td class="miss">미노출</td>'
 
-    trs = [f'<tr><td class="cname">{_html.escape(n)}</td>{cell(pc, n)}{cell(mo, n)}</tr>'
-           for n in track]
-    table = ('<table class="sam"><thead><tr><th>카드명</th>'
-             '<th style="text-align:center">PC 순위</th>'
-             '<th style="text-align:center">모바일 순위</th></tr></thead><tbody>'
-             + "".join(trs) + "</tbody></table>")
+    trs = []
+    for n in order:
+        trs.append(
+            f'<tr><td class="cname">{_html.escape(n)}</td>'
+            f'{cell(pc_pri, n)}{cell(mo_pri, n)}'
+            f'{cell(pc_cr, n)}{cell(mo_cr, n)}</tr>')
+    table = (
+        '<table class="sam grp2"><thead>'
+        f'<tr><th rowspan="2" style="vertical-align:bottom">카드명</th>'
+        f'<th colspan="2" class="grp">{_html.escape(primary_label)} 검색</th>'
+        '<th colspan="2" class="grp">신용카드 검색</th></tr>'
+        '<tr><th class="sub">PC</th><th class="sub">MO</th>'
+        '<th class="sub">PC</th><th class="sub">MO</th></tr>'
+        '</thead><tbody>' + "".join(trs) + "</tbody></table>")
     note = f'<div class="note">{note_text}</div>'
     errnote = (f'<div class="err">⚠ 수집 실패 — {_html.escape(str(err))}</div>' if err else "")
     return (f'<div class="kw feat"><div class="kw-head"><span class="kw-title">{_html.escape(title)}</span>'
-            f'<span class="tag">지정 카드 순위</span></div>{errnote}{table}{note}</div>')
+            f'<span class="tag">지정 카드 순위 · 신용카드 MO 오름차순</span></div>{errnote}{table}{note}</div>')
 
 
 # ── 헤더 (좌: 로고·제목 / 우: 새로고침 버튼 + 마지막 수집) ──
@@ -303,14 +343,14 @@ data = st.session_state["data"]
 
 # ── 삼성카드 (최상단, 전체 폭) ───────────────────────────
 st.markdown(tracked_card(
-    SAMSUNG_KW, SAMSUNG_TRACK, data.get(SAMSUNG_KW, {}),
-    "삼성카드 전체 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 목록에 없음 · 순위는 조회 시점에 따라 변동(추정)",
+    SAMSUNG_KW, "삼성카드", SAMSUNG_TRACK, data.get(SAMSUNG_KW, {}),
+    "‘삼성카드’ 검색 목록과 ‘신용카드’ 전체 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
 ), unsafe_allow_html=True)
 
 # ── 프리미엄카드 (전체 폭) ───────────────────────────────
 st.markdown(tracked_card(
-    PREMIUM_KW, PREMIUM_TRACK, data.get(PREMIUM_KW, {}),
-    "‘프리미엄카드’ 검색 더보기 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
+    PREMIUM_KW, "프리미엄카드", PREMIUM_TRACK, data.get(PREMIUM_KW, {}),
+    "‘프리미엄카드’ 검색 목록과 ‘신용카드’ 전체 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
 ), unsafe_allow_html=True)
 
 # ── 경쟁 키워드 (한 줄 3열 → 좁으면 세로 1열) ─────────────
@@ -319,6 +359,6 @@ st.markdown(f'<div class="comp-grid">{cards}</div>', unsafe_allow_html=True)
 
 # ── 삼성 카드 추가 순위 (하단, 전체 폭) ───────────────────
 st.markdown(tracked_card(
-    EXTRA_KW, EXTRA_TRACK, data.get(EXTRA_KW, {}),
-    "삼성카드 전체 목록(관련광고순) 중 지정 카드의 순위 · 미노출 = 현재 광고 목록에 없음 · 추정",
+    EXTRA_KW, "삼성카드", EXTRA_TRACK, data.get(EXTRA_KW, {}),
+    "‘삼성카드’ 검색 목록과 ‘신용카드’ 전체 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
 ), unsafe_allow_html=True)

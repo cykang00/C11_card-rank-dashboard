@@ -284,8 +284,10 @@ def tracked_card(title, primary_label, track, data, note_text) -> str:
     def rank(d, name):
         return d.get(name) if d else None
 
-    # 정렬: 신용카드 모바일 순위 오름차순, 미노출/미수집은 뒤로
-    order = sorted(track, key=lambda n: (rank(mo_cr, n) is None, rank(mo_cr, n) or 0))
+    # 정렬: 1차 신용카드 MO 오름차순 → 2차 삼성/프리미엄 MO 오름차순 (미노출은 뒤로)
+    order = sorted(track, key=lambda n: (
+        rank(mo_cr, n) is None, rank(mo_cr, n) or 0,
+        rank(mo_pri, n) is None, rank(mo_pri, n) or 0))
 
     def cell(d, name):
         if d is None:

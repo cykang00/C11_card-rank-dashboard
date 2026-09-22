@@ -182,11 +182,11 @@ def _fetch_list(kind, dev):
     return nr.fetch_card_list(dev)  # 신용카드 전체
 
 
-# 패널 정의: (키, 표시라벨, 추적목록, primary 목록종류)
+# 패널 정의: (키, 추적목록, primary 종류, primary 라벨, secondary 종류, secondary 라벨)
 PANELS = [
-    (SAMSUNG_KW, "삼성카드", SAMSUNG_TRACK, "ss"),
-    (PREMIUM_KW, "프리미엄카드", PREMIUM_TRACK, "prem"),
-    (EXTRA_KW, "삼성카드", EXTRA_TRACK, "ss"),
+    (SAMSUNG_KW, SAMSUNG_TRACK, "ss", "삼성카드", "credit", "신용카드"),
+    (PREMIUM_KW, PREMIUM_TRACK, "prem", "프리미엄카드", "ss", "삼성카드"),
+    (EXTRA_KW, EXTRA_TRACK, "ss", "삼성카드", "credit", "신용카드"),
 ]
 _LIST_KINDS = {"ss", "prem", "credit"}
 
@@ -221,17 +221,17 @@ def collect_all() -> dict:
         else:
             names_by[sub] = res
 
-    # 패널별로 primary + credit 순위를 조립
-    for key, _label, track, primary_kind in PANELS:
+    # 패널별로 primary + secondary 순위를 조립
+    for key, track, primary_kind, _pl, secondary_kind, _sl in PANELS:
         panel = {}
         for dev, _ in DEVICES:
             pstat, pnames = names_by.get((primary_kind, dev), ("err", "데이터 없음"))
-            cstat, cnames = names_by.get(("credit", dev), ("err", "데이터 없음"))
-            if pstat == "ok" and cstat == "ok":
+            sstat, snames = names_by.get((secondary_kind, dev), ("err", "데이터 없음"))
+            if pstat == "ok" and sstat == "ok":
                 panel[dev] = ("ok", {"primary": nr.positions_of(pnames, track),
-                                     "credit": nr.positions_of(cnames, track)})
+                                     "secondary": nr.positions_of(snames, track)})
             else:
-                panel[dev] = ("err", pnames if pstat == "err" else cnames)
+                panel[dev] = ("err", pnames if pstat == "err" else snames)
         out[key] = panel
     return out
 
@@ -266,27 +266,27 @@ def competitive_card(kw, data) -> str:
             f'{"".join(blocks)}</div>')
 
 
-def tracked_card(title, primary_label, track, data, note_text) -> str:
-    """지정 카드가 [primary 목록]과 [신용카드 전체 목록]에서 각각 PC/모바일 몇 위인지.
+def tracked_card(title, primary_label, secondary_label, track, data, note_text) -> str:
+    """지정 카드가 [primary 목록]과 [secondary 목록]에서 각각 PC/모바일 몇 위인지.
 
-    행은 '신용카드 모바일 순위' 오름차순 정렬(미노출은 맨 아래).
+    행은 'secondary(오른쪽 그룹) 모바일 순위' 오름차순 정렬(미노출은 맨 아래).
     """
-    def sets(dev):  # (primary_dict, credit_dict) or (None, None)
+    def sets(dev):  # (primary_dict, secondary_dict) or (None, None)
         status, payload = data.get(dev, ("err", None))
         if status == "ok":
-            return payload["primary"], payload["credit"]
+            return payload["primary"], payload["secondary"]
         return None, None
-    pc_pri, pc_cr = sets("pc")
-    mo_pri, mo_cr = sets("mobile")
+    pc_pri, pc_sec = sets("pc")
+    mo_pri, mo_sec = sets("mobile")
     err = next((pl for dev in ("pc", "mobile")
                 for st_, pl in [data.get(dev, ("err", "데이터 없음"))] if st_ == "err"), None)
 
     def rank(d, name):
         return d.get(name) if d else None
 
-    # 정렬: 1차 신용카드 MO 오름차순 → 2차 삼성/프리미엄 MO 오름차순 (미노출은 뒤로)
+    # 정렬: 1차 secondary MO 오름차순 → 2차 primary MO 오름차순 (미노출은 뒤로)
     order = sorted(track, key=lambda n: (
-        rank(mo_cr, n) is None, rank(mo_cr, n) or 0,
+        rank(mo_sec, n) is None, rank(mo_sec, n) or 0,
         rank(mo_pri, n) is None, rank(mo_pri, n) or 0))
 
     def cell(d, name):
@@ -300,19 +300,20 @@ def tracked_card(title, primary_label, track, data, note_text) -> str:
         trs.append(
             f'<tr><td class="cname">{_html.escape(n)}</td>'
             f'{cell(pc_pri, n)}{cell(mo_pri, n)}'
-            f'{cell(pc_cr, n)}{cell(mo_cr, n)}</tr>')
+            f'{cell(pc_sec, n)}{cell(mo_sec, n)}</tr>')
     table = (
         '<table class="sam grp2"><thead>'
         f'<tr><th rowspan="2" style="vertical-align:bottom">카드명</th>'
         f'<th colspan="2" class="grp">{_html.escape(primary_label)} 검색</th>'
-        '<th colspan="2" class="grp">신용카드 검색</th></tr>'
+        f'<th colspan="2" class="grp">{_html.escape(secondary_label)} 검색</th></tr>'
         '<tr><th class="sub">PC</th><th class="sub">MO</th>'
         '<th class="sub">PC</th><th class="sub">MO</th></tr>'
         '</thead><tbody>' + "".join(trs) + "</tbody></table>")
     note = f'<div class="note">{note_text}</div>'
     errnote = (f'<div class="err">⚠ 수집 실패 — {_html.escape(str(err))}</div>' if err else "")
     return (f'<div class="kw feat"><div class="kw-head"><span class="kw-title">{_html.escape(title)}</span>'
-            f'<span class="tag">지정 카드 순위 · 신용카드 MO 오름차순</span></div>{errnote}{table}{note}</div>')
+            f'<span class="tag">지정 카드 순위 · {_html.escape(secondary_label)} MO 오름차순</span></div>'
+            f'{errnote}{table}{note}</div>')
 
 
 # ── 헤더 (좌: 로고·제목 / 우: 새로고침 버튼 + 마지막 수집) ──
@@ -345,14 +346,14 @@ data = st.session_state["data"]
 
 # ── 삼성카드 (최상단, 전체 폭) ───────────────────────────
 st.markdown(tracked_card(
-    SAMSUNG_KW, "삼성카드", SAMSUNG_TRACK, data.get(SAMSUNG_KW, {}),
+    SAMSUNG_KW, "삼성카드", "신용카드", SAMSUNG_TRACK, data.get(SAMSUNG_KW, {}),
     "‘삼성카드’ 검색 목록과 ‘신용카드’ 전체 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
 ), unsafe_allow_html=True)
 
 # ── 프리미엄카드 (전체 폭) ───────────────────────────────
 st.markdown(tracked_card(
-    PREMIUM_KW, "프리미엄카드", PREMIUM_TRACK, data.get(PREMIUM_KW, {}),
-    "‘프리미엄카드’ 검색 목록과 ‘신용카드’ 전체 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
+    PREMIUM_KW, "프리미엄카드", "삼성카드", PREMIUM_TRACK, data.get(PREMIUM_KW, {}),
+    "‘프리미엄카드’ 검색 목록과 ‘삼성카드’ 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
 ), unsafe_allow_html=True)
 
 # ── 경쟁 키워드 (한 줄 3열 → 좁으면 세로 1열) ─────────────
@@ -361,6 +362,6 @@ st.markdown(f'<div class="comp-grid">{cards}</div>', unsafe_allow_html=True)
 
 # ── 삼성 카드 추가 순위 (하단, 전체 폭) ───────────────────
 st.markdown(tracked_card(
-    EXTRA_KW, "삼성카드", EXTRA_TRACK, data.get(EXTRA_KW, {}),
+    EXTRA_KW, "삼성카드", "신용카드", EXTRA_TRACK, data.get(EXTRA_KW, {}),
     "‘삼성카드’ 검색 목록과 ‘신용카드’ 전체 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
 ), unsafe_allow_html=True)

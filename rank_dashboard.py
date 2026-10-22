@@ -94,11 +94,12 @@ html{ scroll-behavior:smooth; }
 div[data-testid="stButton"] button{
   font-family:"Pretendard","Pretendard Variable","Apple SD Gothic Neo","Malgun Gothic",-apple-system,sans-serif !important; }
 #MainMenu, header[data-testid="stHeader"], footer{ visibility:hidden; }
-div[data-testid="stVerticalBlock"]{ gap:1.6rem; }
+div[data-testid="stVerticalBlock"]{ gap:2rem; }  /* 모니모 대블록 간격(≈40px)에 맞춤 */
 /* 알약 네비 = 유일한 columns 블록을 흰 pill로, 버튼은 우측 안쪽 */
 div[data-testid="stHorizontalBlock"]{ background:#fff; border-radius:999px; box-shadow:var(--sh-sm);
   align-items:center; gap:.5rem; padding:8px 14px; }
-div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"]{ display:flex; justify-content:flex-end; }
+/* 마지막 열(새로고침)을 우측 끝으로 붙임 */
+div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-child div[data-testid="stVerticalBlock"]{ align-items:flex-end; }
 .navrow{ display:flex; align-items:center; gap:10px; }
 .logo{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.12rem; letter-spacing:-.02em; padding:2px 12px 2px 4px; color:var(--ink); }
 .logo .mark{ width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--grad1),var(--grad2));
@@ -112,15 +113,10 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 :target{ scroll-margin-top:16px; }
 
 /* 인사 */
-.greet{ margin-bottom:24px; }
-.hi{ font-size:1.8rem; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
+.greet{ margin-bottom:32px; }
+.hi{ font-size:2rem; font-weight:800; letter-spacing:-.03em; color:var(--ink); line-height:1.25; }
 .hi b{ color:var(--acc); font-weight:800; }
 .sub{ color:var(--muted); font-size:.88rem; margin-top:6px; }
-/* 순위 색상 범례 */
-.legend{ display:flex; align-items:center; gap:8px; margin-top:12px; font-size:.74rem;
-  font-weight:700; color:var(--faint); }
-.legend .lg{ font-weight:800; font-variant-numeric:tabular-nums; padding:3px 10px; border-radius:999px; background:#fff; box-shadow:var(--sh-sm); }
-.legend .lg.t1{ color:var(--acc); } .legend .lg.t2{ color:var(--ink); } .legend .lg.t3{ color:#9AA3B6; }
 
 /* 요약 3카드 */
 .stats{ display:grid; grid-template-columns:1fr 1.2fr 1fr; gap:18px; }
@@ -164,9 +160,9 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .gt thead tr:last-child th:nth-child(3), .gt thead tr:last-child th:nth-child(4),
 .gt tbody td:nth-child(4), .gt tbody td:nth-child(5){ background:#F6F8FF; }
 .gt tbody tr:hover td:nth-child(4), .gt tbody tr:hover td:nth-child(5){ background:#EEF2FF; }
-.rk{ font-weight:800; font-variant-numeric:tabular-nums; font-size:1.14rem; letter-spacing:-.01em; }
+.rk{ font-weight:800; font-variant-numeric:tabular-nums; font-size:1.14rem; letter-spacing:-.01em;
+  color:#5B6478; }
 .rk small{ font-size:.64em; font-weight:600; color:var(--faint); margin-left:1px; }
-.rk.t1{ color:var(--acc); } .rk.t2{ color:var(--ink); } .rk.t3{ color:#9AA3B6; }
 .miss{ display:inline-block; font-size:.72rem; font-weight:700; color:#A2AAC0; background:var(--miss-bg); padding:4px 10px; border-radius:999px; }
 
 /* 경쟁 키워드 */
@@ -267,9 +263,8 @@ def collect_all() -> dict:
 
 # ── 렌더 ────────────────────────────────────────────────
 def _rk(v) -> str:
-    """순위 숫자 → 티어 컬러 span (1~5 강조, 6~15 보통, 16+ 연함)."""
-    t = "t1" if v <= 5 else "t2" if v <= 15 else "t3"
-    return f'<span class="rk {t}">{v}<small>위</small></span>'
+    """순위 숫자 span (색상 조건 없이 회색 통일)."""
+    return f'<span class="rk">{v}<small>위</small></span>'
 
 
 def competitive_card(kw, data) -> str:
@@ -360,10 +355,7 @@ with ncol2:
 # ── 인사줄 (전체 폭) + 순위 색상 범례 ─────────────────────
 st.markdown(
     '<div class="greet"><div class="hi">신용카드검색 순위 <b>모니터링</b></div>'
-    '<div class="sub">네이버 검색결과 ‘신용카드’ 비교 위젯 · 관련광고순 기준 · 추정치</div>'
-    '<div class="legend">순위 색상'
-    '<span class="lg t1">1~5위</span><span class="lg t2">6~15위</span>'
-    '<span class="lg t3">16위~</span></div></div>',
+    '<div class="sub">네이버 검색결과 ‘신용카드’ 비교 위젯 · 관련광고순 기준 · 추정치</div></div>',
     unsafe_allow_html=True)
 
 if refresh or st.session_state.get("data") is None:

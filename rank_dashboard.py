@@ -112,8 +112,9 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 :target{ scroll-margin-top:16px; }
 
 /* 인사 */
+.greet{ margin-bottom:24px; }
 .hi{ font-size:1.8rem; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
-.hi b{ color:var(--acc); }
+.hi b{ color:var(--acc); font-weight:800; }
 .sub{ color:var(--muted); font-size:.88rem; margin-top:6px; }
 /* 순위 색상 범례 */
 .legend{ display:flex; align-items:center; gap:8px; margin-top:12px; font-size:.74rem;
@@ -346,13 +347,10 @@ def tracked_card(title, primary_label, secondary_label, track, data, note_text, 
 if "data" not in st.session_state:
     st.session_state["data"] = None
 
-_MARK = ('<span class="mark"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff">'
-         '<circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/>'
-         '<circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/></svg></span>')
 ncol1, ncol2 = st.columns([5, 1.3], vertical_alignment="center")
 with ncol1:
     st.markdown(
-        f'<div class="navrow" id="top"><div class="logo">{_MARK}삼성카드</div>'
+        '<div class="navrow" id="top"><div class="logo">삼성카드</div>'
         '<div class="navitems"><a class="on" href="#top">대시보드</a>'
         '<a href="#sec-samsung">삼성카드</a><a href="#sec-premium">프리미엄</a>'
         '<a href="#sec-comp">경쟁 키워드</a></div></div>', unsafe_allow_html=True)
@@ -361,11 +359,11 @@ with ncol2:
 
 # ── 인사줄 (전체 폭) + 순위 색상 범례 ─────────────────────
 st.markdown(
-    '<div class="hi">신용카드검색 순위 <b>모니터링</b></div>'
+    '<div class="greet"><div class="hi">신용카드검색 순위 <b>모니터링</b></div>'
     '<div class="sub">네이버 검색결과 ‘신용카드’ 비교 위젯 · 관련광고순 기준 · 추정치</div>'
     '<div class="legend">순위 색상'
     '<span class="lg t1">1~5위</span><span class="lg t2">6~15위</span>'
-    '<span class="lg t3">16위~</span></div>',
+    '<span class="lg t3">16위~</span></div></div>',
     unsafe_allow_html=True)
 
 if refresh or st.session_state.get("data") is None:

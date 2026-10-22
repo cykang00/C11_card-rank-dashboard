@@ -85,6 +85,7 @@ st.markdown("""
   --acc:#4E6EF5; --acc-ink:#3A57D8; --acc-soft:#EBF0FE; --acc-soft2:#F3F6FE;
   --grad1:#5A78FA; --grad2:#6E8CFF; --hl:#EAF0FF; --miss-bg:#F0F2F7;
   --sh:0 14px 34px -18px rgba(60,80,170,.22); --sh-sm:0 8px 20px -14px rgba(60,80,170,.18); --r:24px; }
+html{ scroll-behavior:smooth; }
 .stApp{ background:var(--bg);
   font-family:"Pretendard","Pretendard Variable","Apple SD Gothic Neo","Malgun Gothic",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; }
 .block-container{ padding-top:1.3rem; padding-bottom:4rem; max-width:1200px; }
@@ -105,8 +106,12 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .logo .mark{ width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--grad1),var(--grad2));
   display:grid; place-items:center; }
 .navitems{ display:flex; gap:4px; }
-.navitems span{ color:var(--muted); font-weight:600; font-size:.9rem; padding:8px 16px; border-radius:999px; }
-.navitems span.on{ background:var(--acc); color:#fff; box-shadow:0 6px 16px -6px rgba(78,110,245,.6); }
+.navitems a{ color:var(--muted); font-weight:600; font-size:.9rem; padding:8px 16px; border-radius:999px;
+  text-decoration:none; cursor:pointer; transition:background .15s,color .15s; }
+.navitems a:hover{ background:var(--acc-soft); color:var(--acc-ink); }
+.navitems a.on{ background:var(--acc); color:#fff; box-shadow:0 6px 16px -6px rgba(78,110,245,.6); }
+.navitems a.on:hover{ background:var(--acc); color:#fff; }
+:target{ scroll-margin-top:16px; }
 
 /* 인사 */
 .hi{ font-size:1.8rem; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
@@ -137,7 +142,8 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .err{ background:#FEEDED; color:#C0392B; border-radius:12px; padding:10px 14px; font-size:.82rem; font-weight:600; margin:0 0 12px; }
 
 /* 지정카드 그룹표 */
-.gt{ width:100%; border-collapse:separate; border-spacing:0; font-size:.92rem; }
+.gt{ width:100%; border-collapse:separate; border-spacing:0; font-size:.92rem; table-layout:fixed; }
+.gt col{ width:17.5%; } .gt col.c-name{ width:30%; }
 .gt thead th{ font-weight:700; color:var(--muted); }
 .gt thead tr:first-child th{ font-size:.82rem; padding:6px 10px 8px; }
 .gt thead tr:first-child th .gband{ display:inline-block; background:var(--acc-soft); color:var(--acc-ink);
@@ -148,7 +154,9 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .gt td{ padding:13px 10px; border-bottom:1px solid var(--line2); text-align:center; }
 .gt tbody tr:last-child td{ border-bottom:none; }
 .gt tbody tr:hover td{ background:var(--acc-soft2); }
-.gt td.name{ text-align:left; font-weight:600; color:var(--ink); padding-left:6px; white-space:nowrap; }
+.gt td.name{ text-align:left; font-weight:600; color:var(--ink); padding-left:6px;
+  white-space:normal; line-height:1.3; word-break:keep-all; }
+.gt td{ vertical-align:middle; }
 .gt thead tr:first-child th:nth-child(3),
 .gt thead tr:last-child th:nth-child(3),
 .gt tbody td:nth-child(4){ border-left:1px solid var(--line); }
@@ -283,7 +291,7 @@ def competitive_card(kw, data) -> str:
             f'{"".join(blocks)}</div>')
 
 
-def tracked_card(title, primary_label, secondary_label, track, data, note_text) -> str:
+def tracked_card(title, primary_label, secondary_label, track, data, note_text, anchor="") -> str:
     """지정 카드가 [primary 목록]과 [secondary 목록]에서 각각 PC/모바일 몇 위인지.
 
     행은 'secondary(오른쪽 그룹) 모바일 순위' 오름차순 정렬(미노출은 맨 아래).
@@ -318,7 +326,7 @@ def tracked_card(title, primary_label, secondary_label, track, data, note_text) 
             f'{cell(pc_pri, n)}{cell(mo_pri, n)}'
             f'{cell(pc_sec, n)}{cell(mo_sec, n)}</tr>')
     table = (
-        '<table class="gt"><thead>'
+        '<table class="gt"><colgroup><col class="c-name"><col><col><col class="c-sec"><col></colgroup><thead>'
         '<tr><th class="cardcol" rowspan="2">카드명</th>'
         f'<th colspan="2"><span class="gband">{_html.escape(primary_label)} 검색</span></th>'
         f'<th colspan="2" class="cc"><span class="gband">{_html.escape(secondary_label)} 검색</span></th></tr>'
@@ -326,7 +334,8 @@ def tracked_card(title, primary_label, secondary_label, track, data, note_text) 
         '</thead><tbody>' + "".join(trs) + "</tbody></table>")
     note = f'<div class="note">{note_text}</div>'
     errnote = (f'<div class="err">⚠ 수집 실패 — {_html.escape(str(err))}</div>' if err else "")
-    return (f'<div class="panel"><div class="phead"><span class="ptitle">{_html.escape(title)}</span>'
+    aid = f' id="{anchor}"' if anchor else ""
+    return (f'<div class="panel"{aid}><div class="phead"><span class="ptitle">{_html.escape(title)}</span>'
             f'<span class="ptag">{_html.escape(secondary_label)} MO 오름차순</span></div>'
             f'{errnote}{table}{note}</div>')
 
@@ -339,9 +348,10 @@ _MARK = ('<span class="mark"><svg viewBox="0 0 24 24" width="16" height="16" fil
          '<circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/>'
          '<circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/></svg></span>')
 st.markdown(
-    f'<div class="nav"><div class="logo">{_MARK}삼성카드</div>'
-    '<div class="navitems"><span class="on">대시보드</span>'
-    '<span>삼성카드</span><span>프리미엄</span><span>경쟁 키워드</span></div></div>',
+    f'<div class="nav" id="top"><div class="logo">{_MARK}삼성카드</div>'
+    '<div class="navitems"><a class="on" href="#top">대시보드</a>'
+    '<a href="#sec-samsung">삼성카드</a><a href="#sec-premium">프리미엄</a>'
+    '<a href="#sec-comp">경쟁 키워드</a></div></div>',
     unsafe_allow_html=True)
 
 # ── 인사줄 (좌: 제목 / 우: 새로고침) ──────────────────────
@@ -383,16 +393,18 @@ st.markdown(
 st.markdown(tracked_card(
     SAMSUNG_KW, "삼성카드", "신용카드", SAMSUNG_TRACK, data.get(SAMSUNG_KW, {}),
     "‘삼성카드’ 검색 목록과 ‘신용카드’ 전체 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
+    anchor="sec-samsung",
 ), unsafe_allow_html=True)
 
 # ── 프리미엄카드 ─────────────────────────────────────────
 st.markdown(tracked_card(
     PREMIUM_KW, "프리미엄카드", "삼성카드", PREMIUM_TRACK, data.get(PREMIUM_KW, {}),
     "‘프리미엄카드’ 검색 목록과 ‘삼성카드’ 검색 목록(관련광고순) 각각에서 지정 카드의 순위 · 미노출 = 목록에 없음 · 추정",
+    anchor="sec-premium",
 ), unsafe_allow_html=True)
 
 # ── 경쟁 키워드 (2열 → 좁으면 1열) ───────────────────────
-st.markdown('<div class="sectlabel">경쟁 키워드 · 관련광고순 TOP6</div>', unsafe_allow_html=True)
+st.markdown('<div class="sectlabel" id="sec-comp">경쟁 키워드 · 관련광고순 TOP6</div>', unsafe_allow_html=True)
 cards = "".join(competitive_card(kw, data) for kw in COMP_KWS)
 st.markdown(f'<div class="comp-grid">{cards}</div>', unsafe_allow_html=True)
 

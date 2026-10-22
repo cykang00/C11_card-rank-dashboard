@@ -95,13 +95,11 @@ div[data-testid="stButton"] button{
   font-family:"Pretendard","Pretendard Variable","Apple SD Gothic Neo","Malgun Gothic",-apple-system,sans-serif !important; }
 #MainMenu, header[data-testid="stHeader"], footer{ visibility:hidden; }
 div[data-testid="stVerticalBlock"]{ gap:1.6rem; }
-/* 인사줄(유일한 columns)은 투명하게 */
-div[data-testid="stHorizontalBlock"]{ background:transparent; align-items:center; gap:1rem; }
+/* 알약 네비 = 유일한 columns 블록을 흰 pill로, 버튼은 우측 안쪽 */
+div[data-testid="stHorizontalBlock"]{ background:#fff; border-radius:999px; box-shadow:var(--sh-sm);
+  align-items:center; gap:.5rem; padding:8px 14px; }
 div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"]{ display:flex; justify-content:flex-end; }
-
-/* 알약 네비 */
-.nav{ background:#fff; border-radius:999px; box-shadow:var(--sh-sm); display:flex; align-items:center;
-  gap:8px; padding:9px 14px; }
+.navrow{ display:flex; align-items:center; gap:10px; }
 .logo{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.12rem; letter-spacing:-.02em; padding:2px 12px 2px 4px; color:var(--ink); }
 .logo .mark{ width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--grad1),var(--grad2));
   display:grid; place-items:center; }
@@ -117,6 +115,11 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .hi{ font-size:1.8rem; font-weight:800; letter-spacing:-.03em; color:var(--ink); }
 .hi b{ color:var(--acc); }
 .sub{ color:var(--muted); font-size:.88rem; margin-top:6px; }
+/* 순위 색상 범례 */
+.legend{ display:flex; align-items:center; gap:8px; margin-top:12px; font-size:.74rem;
+  font-weight:700; color:var(--faint); }
+.legend .lg{ font-weight:800; font-variant-numeric:tabular-nums; padding:3px 10px; border-radius:999px; background:#fff; box-shadow:var(--sh-sm); }
+.legend .lg.t1{ color:var(--acc); } .legend .lg.t2{ color:var(--ink); } .legend .lg.t3{ color:#9AA3B6; }
 
 /* 요약 3카드 */
 .stats{ display:grid; grid-template-columns:1fr 1.2fr 1fr; gap:18px; }
@@ -152,7 +155,6 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .gt thead tr:last-child th{ font-size:.72rem; letter-spacing:.04em; color:var(--faint); padding:4px 12px 14px; }
 .gt th.cardcol{ text-align:left; vertical-align:bottom; padding-left:10px; color:var(--muted); font-size:.74rem; }
 .gt td{ padding:17px 14px; border-bottom:1px solid #F1F3FA; text-align:center; vertical-align:middle; }
-.gt tbody tr:last-child td{ border-bottom:none; }
 .gt tbody tr:hover td{ background:var(--acc-soft2); }
 .gt td.name{ text-align:left; font-weight:600; color:var(--ink); padding-left:10px; font-size:.95rem;
   white-space:normal; line-height:1.35; word-break:keep-all; }
@@ -177,7 +179,6 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
   padding:4px 11px; border-radius:999px; margin:14px 0 8px; }
 .rt{ width:100%; border-collapse:collapse; font-size:.86rem; }
 .rt td{ padding:11px 9px; border-bottom:1px solid #F1F3FA; color:var(--ink); }
-.rt tr:last-child td{ border-bottom:none; }
 .rt td.no{ width:34px; text-align:center; }
 .rt td.no span{ display:inline-grid; place-items:center; width:23px; height:23px; border-radius:8px;
   background:#F2F4FA; color:var(--muted); font-weight:800; font-size:.76rem; font-variant-numeric:tabular-nums; }
@@ -188,7 +189,7 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 
 /* 새로고침 버튼 */
 div[data-testid="stButton"] > button{ background:var(--acc); color:#fff; border:none; border-radius:999px;
-  font-weight:700; padding:.6rem 1.5rem; box-shadow:0 10px 20px -8px rgba(78,110,245,.6); transition:transform .12s; }
+  font-weight:700; padding:.5rem 1.35rem; box-shadow:0 8px 18px -8px rgba(78,110,245,.6); transition:transform .12s; }
 div[data-testid="stButton"] > button:hover{ background:var(--acc-ink); transform:translateY(-1px); }
 div[data-testid="stButton"] > button:active{ transform:scale(.98); }
 </style>
@@ -341,29 +342,31 @@ def tracked_card(title, primary_label, secondary_label, track, data, note_text, 
             f'{errnote}{table}{note}</div>')
 
 
-# ── 알약 네비 ────────────────────────────────────────────
+# ── 알약 네비 (좌: 로고·메뉴 / 우: 새로고침) ──────────────
 if "data" not in st.session_state:
     st.session_state["data"] = None
 
 _MARK = ('<span class="mark"><svg viewBox="0 0 24 24" width="16" height="16" fill="#fff">'
          '<circle cx="7" cy="7" r="3"/><circle cx="17" cy="7" r="3"/>'
          '<circle cx="7" cy="17" r="3"/><circle cx="17" cy="17" r="3"/></svg></span>')
-st.markdown(
-    f'<div class="nav" id="top"><div class="logo">{_MARK}삼성카드</div>'
-    '<div class="navitems"><a class="on" href="#top">대시보드</a>'
-    '<a href="#sec-samsung">삼성카드</a><a href="#sec-premium">프리미엄</a>'
-    '<a href="#sec-comp">경쟁 키워드</a></div></div>',
-    unsafe_allow_html=True)
-
-# ── 인사줄 (좌: 제목 / 우: 새로고침) ──────────────────────
-gcol, bcol = st.columns([5, 1.4], vertical_alignment="center")
-with gcol:
+ncol1, ncol2 = st.columns([5, 1.3], vertical_alignment="center")
+with ncol1:
     st.markdown(
-        '<div class="hi">신용카드검색 순위 <b>모니터링</b></div>'
-        '<div class="sub">네이버 검색결과 ‘신용카드’ 비교 위젯 · 관련광고순 기준 · 추정치</div>',
-        unsafe_allow_html=True)
-with bcol:
+        f'<div class="navrow" id="top"><div class="logo">{_MARK}삼성카드</div>'
+        '<div class="navitems"><a class="on" href="#top">대시보드</a>'
+        '<a href="#sec-samsung">삼성카드</a><a href="#sec-premium">프리미엄</a>'
+        '<a href="#sec-comp">경쟁 키워드</a></div></div>', unsafe_allow_html=True)
+with ncol2:
     refresh = st.button("↻ 새로고침", use_container_width=False)
+
+# ── 인사줄 (전체 폭) + 순위 색상 범례 ─────────────────────
+st.markdown(
+    '<div class="hi">신용카드검색 순위 <b>모니터링</b></div>'
+    '<div class="sub">네이버 검색결과 ‘신용카드’ 비교 위젯 · 관련광고순 기준 · 추정치</div>'
+    '<div class="legend">순위 색상'
+    '<span class="lg t1">1~5위</span><span class="lg t2">6~15위</span>'
+    '<span class="lg t3">16위~</span></div>',
+    unsafe_allow_html=True)
 
 if refresh or st.session_state.get("data") is None:
     with st.spinner("네이버에서 최신 카드 순위 수집 중…"):

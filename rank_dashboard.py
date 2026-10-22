@@ -94,7 +94,7 @@ html{ scroll-behavior:smooth; }
 div[data-testid="stButton"] button{
   font-family:"Pretendard","Pretendard Variable","Apple SD Gothic Neo","Malgun Gothic",-apple-system,sans-serif !important; }
 #MainMenu, header[data-testid="stHeader"], footer{ visibility:hidden; }
-div[data-testid="stVerticalBlock"]{ gap:1.25rem; }
+div[data-testid="stVerticalBlock"]{ gap:1.6rem; }
 /* 인사줄(유일한 columns)은 투명하게 */
 div[data-testid="stHorizontalBlock"]{ background:transparent; align-items:center; gap:1rem; }
 div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"]{ display:flex; justify-content:flex-end; }
@@ -120,7 +120,7 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 
 /* 요약 3카드 */
 .stats{ display:grid; grid-template-columns:1fr 1.2fr 1fr; gap:18px; }
-.stat{ background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:20px 24px; }
+.stat{ background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:26px 28px; }
 .stat .chip{ width:42px; height:42px; border-radius:13px; background:var(--acc-soft); display:grid;
   place-items:center; color:var(--acc); margin-bottom:12px; font-size:1.15rem; }
 .stat .lab{ color:var(--muted); font-size:.84rem; font-weight:600; }
@@ -134,8 +134,8 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .stat.hero .up{ margin-top:10px; font-size:.8rem; color:#E4EAFF; position:relative; }
 
 /* 패널 */
-.panel{ background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:24px 26px 14px; }
-.phead{ display:flex; align-items:center; gap:10px; margin:0 2px 16px; }
+.panel{ background:#fff; border-radius:var(--r); box-shadow:var(--sh); padding:30px 34px 22px; }
+.phead{ display:flex; align-items:center; gap:10px; margin:0 2px 22px; }
 .ptitle{ font-size:1.14rem; font-weight:800; letter-spacing:-.01em; color:var(--ink); }
 .ptag{ font-size:.7rem; font-weight:700; color:var(--acc); background:var(--acc-soft); padding:4px 11px; border-radius:999px; }
 .note{ color:var(--faint); font-size:.76rem; margin:12px 2px 2px; line-height:1.5; }
@@ -145,22 +145,23 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .gt{ width:100%; border-collapse:separate; border-spacing:0; font-size:.92rem; table-layout:fixed; }
 .gt col{ width:17.5%; } .gt col.c-name{ width:30%; }
 .gt thead th{ font-weight:700; color:var(--muted); }
-.gt thead tr:first-child th{ font-size:.82rem; padding:6px 10px 8px; }
+.gt thead tr:first-child th{ font-size:.82rem; padding:8px 12px 10px; }
 .gt thead tr:first-child th .gband{ display:inline-block; background:var(--acc-soft); color:var(--acc-ink);
-  padding:5px 16px; border-radius:999px; font-size:.78rem; font-weight:700; }
-.gt thead tr:first-child th.cc .gband{ background:#F3F5FA; color:var(--muted); }
-.gt thead tr:last-child th{ font-size:.72rem; letter-spacing:.03em; color:var(--faint); padding:2px 10px 12px; border-bottom:1px solid var(--line); }
-.gt th.cardcol{ text-align:left; vertical-align:bottom; padding-left:6px; color:var(--muted); font-size:.74rem; }
-.gt td{ padding:13px 10px; border-bottom:1px solid var(--line2); text-align:center; }
+  padding:6px 18px; border-radius:999px; font-size:.78rem; font-weight:700; }
+.gt thead tr:first-child th.cc .gband{ background:#E6ECFA; color:var(--acc-ink); }
+.gt thead tr:last-child th{ font-size:.72rem; letter-spacing:.04em; color:var(--faint); padding:4px 12px 14px; }
+.gt th.cardcol{ text-align:left; vertical-align:bottom; padding-left:10px; color:var(--muted); font-size:.74rem; }
+.gt td{ padding:17px 14px; border-bottom:1px solid #F1F3FA; text-align:center; vertical-align:middle; }
 .gt tbody tr:last-child td{ border-bottom:none; }
 .gt tbody tr:hover td{ background:var(--acc-soft2); }
-.gt td.name{ text-align:left; font-weight:600; color:var(--ink); padding-left:6px;
-  white-space:normal; line-height:1.3; word-break:keep-all; }
-.gt td{ vertical-align:middle; }
-.gt thead tr:first-child th:nth-child(3),
-.gt thead tr:last-child th:nth-child(3),
-.gt tbody td:nth-child(4){ border-left:1px solid var(--line); }
-.rk{ font-weight:800; font-variant-numeric:tabular-nums; font-size:1.04rem; letter-spacing:-.01em; }
+.gt td.name{ text-align:left; font-weight:600; color:var(--ink); padding-left:10px; font-size:.95rem;
+  white-space:normal; line-height:1.35; word-break:keep-all; }
+/* 두 '검색' 그룹을 선 대신 은은한 음영으로 구분 (secondary 2개 열) */
+.gt thead tr:first-child th.cc,
+.gt thead tr:last-child th:nth-child(3), .gt thead tr:last-child th:nth-child(4),
+.gt tbody td:nth-child(4), .gt tbody td:nth-child(5){ background:#F6F8FF; }
+.gt tbody tr:hover td:nth-child(4), .gt tbody tr:hover td:nth-child(5){ background:#EEF2FF; }
+.rk{ font-weight:800; font-variant-numeric:tabular-nums; font-size:1.14rem; letter-spacing:-.01em; }
 .rk small{ font-size:.64em; font-weight:600; color:var(--faint); margin-left:1px; }
 .rk.t1{ color:var(--acc); } .rk.t2{ color:var(--ink); } .rk.t3{ color:#9AA3B6; }
 .miss{ display:inline-block; font-size:.72rem; font-weight:700; color:#A2AAC0; background:var(--miss-bg); padding:4px 10px; border-radius:999px; }
@@ -169,13 +170,13 @@ div[data-testid="stHorizontalBlock"] > div:last-child div[data-testid="stButton"
 .sectlabel{ font-size:.8rem; font-weight:800; color:var(--muted); letter-spacing:.06em; margin:14px 6px 0; }
 .comp-grid{ display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
 @media (max-width:820px){ .comp-grid{ grid-template-columns:1fr; } }
-.kw{ background:#fff; border-radius:20px; box-shadow:var(--sh); padding:20px 20px 10px; }
+.kw{ background:#fff; border-radius:20px; box-shadow:var(--sh); padding:24px 24px 14px; }
 .kw .ptitle{ font-size:1.02rem; }
 .devblock{ margin-bottom:4px; }
 .dev{ font-size:.74rem; font-weight:700; color:var(--acc); background:var(--acc-soft); display:inline-block;
   padding:4px 11px; border-radius:999px; margin:14px 0 8px; }
 .rt{ width:100%; border-collapse:collapse; font-size:.86rem; }
-.rt td{ padding:8px 8px; border-bottom:1px solid var(--line2); color:var(--ink); }
+.rt td{ padding:11px 9px; border-bottom:1px solid #F1F3FA; color:var(--ink); }
 .rt tr:last-child td{ border-bottom:none; }
 .rt td.no{ width:34px; text-align:center; }
 .rt td.no span{ display:inline-grid; place-items:center; width:23px; height:23px; border-radius:8px;

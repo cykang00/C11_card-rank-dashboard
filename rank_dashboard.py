@@ -100,7 +100,9 @@ div[data-testid="stHorizontalBlock"]{ background:#fff; border-radius:999px; box-
   align-items:center; gap:.5rem; padding:8px 14px; }
 /* 마지막 열(새로고침)을 우측 끝으로 붙임 */
 div[data-testid="stHorizontalBlock"] div[data-testid="stColumn"]:last-child div[data-testid="stVerticalBlock"]{ align-items:flex-end; }
-.navrow{ display:flex; align-items:center; gap:10px; }
+.navrow{ display:flex; align-items:center; gap:10px; transform:translateY(-4px); }
+/* 로고·메뉴와 새로고침 버튼 세로 중심 일치 (transform으로 재정렬 영향 없이) */
+div[data-testid="stHorizontalBlock"] div[data-testid="stButton"]{ transform:translateY(4px); }
 .logo{ display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.12rem; letter-spacing:-.02em; padding:2px 12px 2px 4px; color:var(--ink); }
 .logo .mark{ width:30px; height:30px; border-radius:9px; background:linear-gradient(135deg,var(--grad1),var(--grad2));
   display:grid; place-items:center; }
